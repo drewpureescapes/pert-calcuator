@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PERT Calculator — Three-Point Estimation</title>
+<meta name="description" content="Quick PERT three-point estimation calculator. Enter optimistic, most likely, and pessimistic estimates to get weighted averages, standard deviation, and confidence ranges.">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg: #f0f4f8;
+  --bg-subtle: #e8eef4;
+  --card: #ffffff;
+  --card-border: #dde4ed;
+  --card-shadow: 0 1px 3px rgba(15,23,42,.06), 0 4px 12px rgba(15,23,42,.04);
+  --text-primary: #1e293b;
+  --text-secondary: #526580;
+  --text-muted: #8896a8;
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
+  --accent-light: #ccfbf1;
+  --accent-glow: rgba(13,148,136,.12);
+  --error: #dc2626;
+  --error-bg: #fef2f2;
+  --error-border: #fca5a5;
+  --optimistic-color: #059669;
+  --likely-color: #0d9488;
+  --pessimistic-color: #d97706;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --transition: 200ms ease;
+}
+
+html {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(13,148,136,.06) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, rgba(13,148,136,.04) 0%, transparent 60%),
+    var(--bg);
+}
+
+.container {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+/* ── Header ── */
+header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+header p {
+  margin-top: .35rem;
+  font-size: .9rem;
+  color: var(--text-secondary);
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Fieldset / Inputs ── */
+.estimates-fieldset {
+  border: none;
+  padding: 0;
+}
+
+.estimates-fieldset legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+}
+
+.input-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-group label {
+  font-size: .8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: .1rem;
+}
+
+.input-group[data-field="optimistic"] label { color: var(--optimistic-color); }
+.input-group[data-field="mostLikely"] label { color: var(--likely-color); }
+.input-group[data-field="pessimistic"] label { color: var(--pessimistic-color); }
+
+.input-helper {
+  font-size: .75rem;
+  color: var(--text-muted);
+  margin-bottom: .4rem;
+}
+
+.input-group select {
+  appearance: none;
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23526580' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right .75rem center;
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: .65rem 2.25rem .65rem .75rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  font-family: inherit;
+  width: 100%;
+}
+
+.input-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.input-group select[aria-invalid="true"] {
+  border-color: var(--error);
+  background-color: var(--error-bg);
+  box-shadow: none;
+}
+
+.input-group select[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px rgba(220,38,38,.1);
+}
+
+.input-error {
+  font-size: .75rem;
+  color: var(--error);
+  min-height: 1.2rem;
+  margin-top: .25rem;
+  line-height: 1.3;
+}
+
+/* ── Clear inputs row ── */
+.input-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: .75rem;
+}
+
+/* ── Results ── */
+.results-card {
+  overflow: hidden;
+  transition: opacity var(--transition);
+}
+
+.results-card.empty {
+  opacity: .5;
+}
+
+.results-card .empty-state {
+  text-align: center;
+  padding: 1rem 0;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+
+.result-grid {
+  display: none;
+}
+
+.result-grid.visible {
+  display: block;
+}
+
+.result-primary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-bottom: .75rem;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.result-primary-left {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.result-primary-label {
+  font-size: .8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+}
+
+.result-primary-value {
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.result-primary-unit {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-left: .15rem;
+}
+
+.copy-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+}
+
+.copy-feedback {
+  font-size: .75rem;
+  color: var(--accent);
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.copy-feedback.show { opacity: 1; }
+
+.result-secondary {
+  display: flex;
+  align-items: baseline;
+  gap: .4rem;
+}
+
+.result-secondary-label {
+  font-size: .8rem;
+  color: var(--text-secondary);
+}
+
+.result-secondary-value {
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.confidence-ranges {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .5rem;
+}
+
+.confidence-item {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: .6rem .65rem;
+  text-align: center;
+}
+
+.confidence-label {
+  display: block;
+  font-size: .7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-bottom: .15rem;
+}
+
+.confidence-value {
+  display: block;
+  font-size: .85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  padding: .5rem 1rem;
+  font-size: .8rem;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  border-color: var(--accent);
+}
+
+.btn:active { transform: scale(.97); }
+
+.btn-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-accent:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #fff;
+}
+
+.btn-sm {
+  padding: .3rem .6rem;
+  font-size: .75rem;
+}
+
+.btn-danger {
+  color: var(--text-muted);
+  border-color: transparent;
+  background: transparent;
+  padding: .3rem .5rem;
+}
+
+.btn-danger:hover {
+  color: var(--error);
+  background: var(--error-bg);
+  border-color: var(--error-border);
+}
+
+.btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ── History ── */
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+}
+
+.history-header h2 {
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.history-empty {
+  text-align: center;
+  padding: 1.25rem 0;
+  color: var(--text-muted);
+  font-size: .85rem;
+}
+
+.history-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -.25rem;
+  padding: 0 .25rem;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: .85rem;
+}
+
+.history-table th {
+  text-align: left;
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-muted);
+  padding: .4rem .5rem;
+  border-bottom: 2px solid var(--card-border);
+  white-space: nowrap;
+}
+
+.history-table td {
+  padding: .5rem .5rem;
+  border-bottom: 1px solid var(--bg-subtle);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.history-table tr:last-child td {
+  border-bottom: none;
+}
+
+.history-table .col-pert {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.history-table .col-delete {
+  width: 36px;
+  text-align: center;
+  padding-right: .25rem;
+}
+
+/* ── Formula Section ── */
+.formula-details {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.formula-details summary {
+  padding: 1rem 1.5rem;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  transition: color var(--transition);
+}
+
+.formula-details summary::-webkit-details-marker { display: none; }
+
+.formula-details summary::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(-45deg);
+  transition: transform .2s ease;
+  flex-shrink: 0;
+}
+
+.formula-details[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.formula-details summary:hover { color: var(--accent); }
+
+.formula-content {
+  padding: 0 1.5rem 1.25rem;
+  font-size: .85rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.formula-content p {
+  margin-bottom: .75rem;
+}
+
+.formula-content code {
+  background: var(--bg);
+  padding: .15rem .4rem;
+  border-radius: 3px;
+  font-size: .82rem;
+  font-family: "SF Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+  color: var(--text-primary);
+}
+
+.formula-content ul {
+  list-style: none;
+  padding: 0;
+}
+
+.formula-content li {
+  padding: .2rem 0;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.formula-content li::before {
+  content: "\00B7";
+  position: absolute;
+  left: 0;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ── Responsive ── */
+@media (max-width: 520px) {
+  .container { padding: 1.25rem 1rem 2rem; }
+  header h1 { font-size: 1.4rem; }
+  .card { padding: 1.15rem; }
+  .input-grid { grid-template-columns: 1fr; gap: .75rem; }
+  .confidence-ranges { grid-template-columns: 1fr; gap: .4rem; }
+  .confidence-item { display: flex; justify-content: space-between; align-items: center; text-align: left; }
+  .result-primary-value { font-size: 1.6rem; }
+  .history-table { font-size: .8rem; }
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<main class="container">
+  <header>
+    <h1>PERT Calculator</h1>
+    <p>Story Estimates in Developer Days</p>
+  </header>
+
+  <!-- Calculator Inputs -->
+  <div class="card">
+    <fieldset class="estimates-fieldset">
+      <legend>Estimation Values</legend>
+      <div class="input-grid">
+        <div class="input-group" data-field="optimistic">
+          <label for="optimistic">Optimistic</label>
+          <span class="input-helper">Best-case scenario</span>
+          <select id="optimistic" aria-describedby="optimistic-error">
+            <option value="" selected disabled>Select</option>
+          </select>
+          <span class="input-error" id="optimistic-error" role="alert"></span>
+        </div>
+        <div class="input-group" data-field="mostLikely">
+          <label for="mostLikely">Most Likely</label>
+          <span class="input-helper">Realistic estimate</span>
+          <select id="mostLikely" aria-describedby="mostLikely-error">
+            <option value="" selected disabled>Select</option>
+          </select>
+          <span class="input-error" id="mostLikely-error" role="alert"></span>
+        </div>
+        <div class="input-group" data-field="pessimistic">
+          <label for="pessimistic">Pessimistic</label>
+          <span class="input-helper">Worst-case scenario</span>
+          <select id="pessimistic" aria-describedby="pessimistic-error">
+            <option value="" selected disabled>Select</option>
+          </select>
+          <span class="input-error" id="pessimistic-error" role="alert"></span>
+        </div>
+      </div>
+    </fieldset>
+
+    <div class="input-card-actions">
+      <button type="button" class="btn btn-sm" id="clearBtn">Clear inputs</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card results-card empty" aria-live="polite" id="resultsCard">
+    <div class="empty-state" id="resultsEmpty">Enter values above to see the PERT estimate</div>
+    <div class="result-grid" id="resultGrid">
+      <div class="result-primary-row">
+        <div>
+          <div class="result-primary-label">PERT Estimate</div>
+          <div class="result-primary-left">
+            <span class="result-primary-value" id="pertValue">&mdash;</span><span class="result-primary-unit"> Days</span>
+            <span class="copy-inline">
+              <button type="button" class="btn btn-accent btn-sm" id="copyBtn" aria-label="Copy PERT estimate to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 0 1 2 9.5v-7A1.5 1.5 0 0 1 3.5 1h7A1.5 1.5 0 0 1 12 2.5V5"/></svg>
+                Copy
+              </button>
+              <span class="copy-feedback" id="copyFeedback">Copied!</span>
+            </span>
+          </div>
+        </div>
+        <div class="result-secondary">
+          <span class="result-secondary-label">Std Dev (&sigma;)</span>
+          <span class="result-secondary-value" id="sdValue">&mdash;</span>
+        </div>
+      </div>
+      <div class="confidence-ranges">
+        <div class="confidence-item">
+          <span class="confidence-label">68% (&pm;1&sigma;)</span>
+          <span class="confidence-value" id="conf68">&mdash;</span>
+        </div>
+        <div class="confidence-item">
+          <span class="confidence-label">95% (&pm;2&sigma;)</span>
+          <span class="confidence-value" id="conf95">&mdash;</span>
+        </div>
+        <div class="confidence-item">
+          <span class="confidence-label">99.7% (&pm;3&sigma;)</span>
+          <span class="confidence-value" id="conf997">&mdash;</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="card" id="historyCard">
+    <div class="history-header">
+      <h2>History</h2>
+      <button type="button" class="btn btn-sm btn-danger" id="clearHistoryBtn" style="display:none">Clear all</button>
+    </div>
+    <div class="history-empty" id="historyEmpty">No calculations yet</div>
+    <div class="history-table-wrap" id="historyTableWrap" style="display:none">
+      <table class="history-table" aria-label="Calculation history">
+        <thead>
+          <tr>
+            <th scope="col">O</th>
+            <th scope="col">M</th>
+            <th scope="col">P</th>
+            <th scope="col">PERT</th>
+            <th scope="col">&sigma;</th>
+            <th scope="col" class="col-delete"><span class="sr-only">Delete</span></th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Formula Explanation -->
+  <details class="formula-details">
+    <summary>How PERT calculation works</summary>
+    <div class="formula-content">
+      <p>
+        PERT (Program Evaluation and Review Technique) uses a <strong>weighted average</strong> of three estimates
+        to produce a more realistic prediction, giving extra weight to the most likely outcome.
+      </p>
+      <p><strong>PERT Estimate</strong> = <code>(O + 4&times;M + P) &divide; 6</code></p>
+      <p><strong>Standard Deviation</strong> = <code>(P &minus; O) &divide; 6</code></p>
+      <p>The confidence ranges assume a beta distribution:</p>
+      <ul>
+        <li><strong>68%</strong> chance the actual value falls within &pm;1 standard deviation</li>
+        <li><strong>95%</strong> chance within &pm;2 standard deviations</li>
+        <li><strong>99.7%</strong> chance within &pm;3 standard deviations</li>
+      </ul>
+      <p>
+        A larger gap between optimistic and pessimistic values means greater uncertainty
+        (higher standard deviation), while a narrow gap indicates a more confident estimate.
+      </p>
+    </div>
+  </details>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  var optimisticEl  = $('optimistic');
+  var mostLikelyEl  = $('mostLikely');
+  var pessimisticEl = $('pessimistic');
+  var selects       = [optimisticEl, mostLikelyEl, pessimisticEl];
+
+  var resultsCard   = $('resultsCard');
+  var resultsEmpty  = $('resultsEmpty');
+  var resultGrid    = $('resultGrid');
+  var pertValue     = $('pertValue');
+  var sdValue       = $('sdValue');
+  var conf68        = $('conf68');
+  var conf95        = $('conf95');
+  var conf997       = $('conf997');
+  var copyBtn       = $('copyBtn');
+  var copyFeedback  = $('copyFeedback');
+  var clearBtn      = $('clearBtn');
+  var clearHistoryBtn = $('clearHistoryBtn');
+  var historyEmpty  = $('historyEmpty');
+  var historyTableWrap = $('historyTableWrap');
+  var historyBody   = $('historyBody');
+
+  var STORAGE_KEY = 'pert-calc-history';
+  var MAX_HISTORY = 50;
+  var VALUES = [
+    0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5,
+    6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+    20, 25, 30
+  ];
+
+  var lastSavedKey = null;
+  var saveTimeout  = null;
+  var currentPert  = null;
+
+  // ── Populate dropdowns ──
+  selects.forEach(function (sel) {
+    VALUES.forEach(function (v) {
+      var opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = v;
+      sel.appendChild(opt);
+    });
+  });
+
+  // ── Helpers ──
+  function fmt(n) {
+    if (!Number.isFinite(n)) return '\u2014';
+    var rounded = Math.ceil(n * 10) / 10;
+    return rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1);
+  }
+
+  function fmtRange(lo, hi) {
+    return fmt(Math.max(0, lo)) + ' \u2013 ' + fmt(hi);
+  }
+
+  // ── Validation ──
+  function validate() {
+    var errors = {};
+    var o = optimisticEl.value;
+    var m = mostLikelyEl.value;
+    var p = pessimisticEl.value;
+
+    // Clear all errors first
+    selects.forEach(function (el) {
+      el.removeAttribute('aria-invalid');
+      $(el.id + '-error').textContent = '';
+    });
+
+    // Check for unselected fields
+    if (o === '' || m === '' || p === '') {
+      return { valid: false, errors: errors, empty: true };
+    }
+
+    var oVal = parseFloat(o);
+    var mVal = parseFloat(m);
+    var pVal = parseFloat(p);
+
+    // Relationship checks
+    if (mVal < oVal) {
+      errors.mostLikely = 'Must be \u2265 Optimistic (' + fmt(oVal) + ')';
+    }
+    if (pVal < mVal) {
+      errors.pessimistic = 'Must be \u2265 Most Likely (' + fmt(mVal) + ')';
+    }
+
+    // Apply errors to DOM
+    Object.keys(errors).forEach(function (field) {
+      var el = $(field);
+      el.setAttribute('aria-invalid', 'true');
+      $(field + '-error').textContent = errors[field];
+    });
+
+    return { valid: Object.keys(errors).length === 0, errors: errors, empty: false };
+  }
+
+  // ── Calculation ──
+  function calculate() {
+    var result = validate();
+
+    if (!result.valid || result.empty) {
+      showEmpty(!result.empty);
+      currentPert = null;
+      return;
+    }
+
+    var o = parseFloat(optimisticEl.value);
+    var m = parseFloat(mostLikelyEl.value);
+    var p = parseFloat(pessimisticEl.value);
+
+    var pert = (o + 4 * m + p) / 6;
+    var sd   = (p - o) / 6;
+
+    currentPert = pert;
+
+    pertValue.textContent = fmt(pert);
+    sdValue.textContent   = fmt(sd);
+    conf68.textContent    = fmtRange(pert - sd, pert + sd);
+    conf95.textContent    = fmtRange(pert - 2 * sd, pert + 2 * sd);
+    conf997.textContent   = fmtRange(pert - 3 * sd, pert + 3 * sd);
+
+    showResults();
+    scheduleSave(o, m, p, pert, sd);
+  }
+
+  function showEmpty(hasErrors) {
+    resultsCard.classList.add('empty');
+    resultsEmpty.style.display = '';
+    resultsEmpty.textContent = hasErrors
+      ? 'Fix errors above to see results'
+      : 'Enter values above to see the PERT estimate';
+    resultGrid.classList.remove('visible');
+  }
+
+  function showResults() {
+    resultsCard.classList.remove('empty');
+    resultsEmpty.style.display = 'none';
+    resultGrid.classList.add('visible');
+  }
+
+  // ── History ──
+  function getHistory() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveHistory(hist) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(hist));
+    } catch (e) { /* storage full or unavailable */ }
+  }
+
+  function scheduleSave(o, m, p, pert, sd) {
+    var key = [o, m, p].join(',');
+    if (key === lastSavedKey) return;
+
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(function () {
+      lastSavedKey = key;
+      var hist = getHistory();
+      hist.unshift({
+        o: o, m: m, p: p,
+        pert: parseFloat(pert.toFixed(4)),
+        sd: parseFloat(sd.toFixed(4)),
+        ts: Date.now()
+      });
+      if (hist.length > MAX_HISTORY) hist = hist.slice(0, MAX_HISTORY);
+      saveHistory(hist);
+      renderHistory();
+    }, 1500);
+  }
+
+  function renderHistory() {
+    var hist = getHistory();
+    if (hist.length === 0) {
+      historyEmpty.style.display = '';
+      historyTableWrap.style.display = 'none';
+      clearHistoryBtn.style.display = 'none';
+      return;
+    }
+
+    historyEmpty.style.display = 'none';
+    historyTableWrap.style.display = '';
+    clearHistoryBtn.style.display = '';
+
+    historyBody.innerHTML = hist.map(function (item, i) {
+      return '<tr>' +
+        '<td>' + fmt(item.o) + '</td>' +
+        '<td>' + fmt(item.m) + '</td>' +
+        '<td>' + fmt(item.p) + '</td>' +
+        '<td class="col-pert">' + fmt(item.pert) + '</td>' +
+        '<td>' + fmt(item.sd) + '</td>' +
+        '<td class="col-delete"><button type="button" class="btn btn-danger btn-sm" data-delete="' + i + '" aria-label="Delete this entry">&times;</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function deleteHistoryItem(index) {
+    var hist = getHistory();
+    hist.splice(index, 1);
+    saveHistory(hist);
+    lastSavedKey = null;
+    renderHistory();
+  }
+
+  function clearAllHistory() {
+    saveHistory([]);
+    lastSavedKey = null;
+    renderHistory();
+  }
+
+  // ── Copy ──
+  function copyResult() {
+    if (currentPert === null) return;
+    var text = fmt(currentPert);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(showCopyFeedback);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showCopyFeedback();
+    }
+  }
+
+  function showCopyFeedback() {
+    copyFeedback.classList.add('show');
+    setTimeout(function () { copyFeedback.classList.remove('show'); }, 1500);
+  }
+
+  // ── Clear ──
+  function clearInputs() {
+    selects.forEach(function (el) {
+      el.value = '';
+      el.removeAttribute('aria-invalid');
+      $(el.id + '-error').textContent = '';
+    });
+    showEmpty(false);
+    currentPert = null;
+    selects[0].focus();
+  }
+
+  // ── Event Listeners ──
+  selects.forEach(function (el) {
+    el.addEventListener('change', calculate);
+  });
+
+  copyBtn.addEventListener('click', copyResult);
+  clearBtn.addEventListener('click', clearInputs);
+  clearHistoryBtn.addEventListener('click', clearAllHistory);
+
+  historyBody.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-delete]');
+    if (btn) {
+      deleteHistoryItem(parseInt(btn.dataset.delete, 10));
+    }
+  });
+
+  // ── Init ──
+  renderHistory();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "cascade-thinking": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "cascade-thinking-mcp"]
+    },
+    "jetbrains": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@jetbrains/mcp-proxy"]
+    },
+    "playwright": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@playwright/mcp@latest", "--config", "C:/projects/dawn/playwright-mcp-config.json", "--isolated"]
+    },
+    "deep-research": {
+      "command": "cmd",
+      "args": ["/c", "uvx", "--from", "git+https://github.com/drewdotpro/mcp-server-deep-research.git", "mcp-server-deep-research"]
+    }
+  }
+}
