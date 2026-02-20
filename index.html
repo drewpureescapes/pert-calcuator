@@ -601,7 +601,7 @@ header p {
         <div>
           <div class="result-primary-label">PERT Estimate</div>
           <div class="result-primary-left">
-            <span class="result-primary-value" id="pertValue">&mdash;</span><span class="result-primary-unit"> Days</span>
+            <span class="result-primary-value" id="pertValue">&mdash;</span><span class="result-primary-unit" id="pertUnit"> days</span>
             <span class="copy-inline">
               <button type="button" class="btn btn-accent btn-sm" id="copyBtn" aria-label="Copy PERT estimate to clipboard">
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 0 1 2 9.5v-7A1.5 1.5 0 0 1 3.5 1h7A1.5 1.5 0 0 1 12 2.5V5"/></svg>
@@ -696,6 +696,7 @@ header p {
   var resultsEmpty  = $('resultsEmpty');
   var resultGrid    = $('resultGrid');
   var pertValue     = $('pertValue');
+  var pertUnit      = $('pertUnit');
   var sdValue       = $('sdValue');
   var conf68        = $('conf68');
   var conf95        = $('conf95');
@@ -725,7 +726,7 @@ header p {
     VALUES.forEach(function (v) {
       var opt = document.createElement('option');
       opt.value = v;
-      opt.textContent = v;
+      opt.textContent = v + (v === 1 ? ' day' : ' days');
       sel.appendChild(opt);
     });
   });
@@ -801,6 +802,7 @@ header p {
     currentPert = pert;
 
     pertValue.textContent = fmt(pert);
+    pertUnit.textContent  = fmt(pert) === '1' ? ' day' : ' days';
     sdValue.textContent   = fmt(sd);
     conf68.textContent    = fmtRange(pert - sd, pert + sd);
     conf95.textContent    = fmtRange(pert - 2 * sd, pert + 2 * sd);
